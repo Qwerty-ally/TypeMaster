@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypeMaster — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="page">
+    <div class="container">
+      <!-- Header -->
+      <div class="dash-header fade-in" id="dash-header"></div>
+
+      <!-- Stats row -->
+      <div class="dash-stats fade-in" id="dash-stats"></div>
+
+      <!-- Main grid -->
+      <div class="dash-grid">
+        <!-- Left: Recent lessons + continue -->
+        <div>
+          <div id="continue-section" class="mb-4"></div>
+
+          <div class="section-header">
+            <h2>Recent Activity</h2>
+            <a href="lessons.html" style="font-size:0.85rem; color:var(--purple)">View all →</a>
+          </div>
+          <div class="recent-list fade-in" id="recent-list">
+            <p style="color:var(--text2)">No lessons completed yet. <a href="lessons.html">Start one now!</a></p>
+          </div>
+        </div>
+
+        <!-- Right: Achievements + Progress ring -->
+        <div>
+          <div class="section-header">
+            <h2>Progress Overview</h2>
+          </div>
+          <div class="sidebar-card mb-4" id="progress-ring-card" style="text-align:center; margin-bottom:16px;">
+            <canvas id="progress-canvas" width="160" height="160" style="display:block; margin:0 auto;"></canvas>
+            <p style="color:var(--text2); font-size:0.85rem; margin-top:8px;" id="ring-label"></p>
+          </div>
+
+          <div class="section-header">
+            <h2>Achievements</h2>
+          </div>
+          <div class="achievements-list fade-in" id="achievements-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="lessons-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function(){var u=localStorage.getItem('tm_uid');document.documentElement.setAttribute('data-theme',localStorage.getItem(u?'tm_theme_'+u:'tm_theme')||'dark');})();
+
+    var _dashUser = null;
+
+    TM.init().then(function() {
+    if (!TM.requireAuth()) return;
+    TM.renderNavbar('dashboard');
+    _dashUser = TM.getCurrentUser();
+    var user = _dashUser;
+    const stats = TM.getOverallStats(user.id);
+    const recent = TM.getRecentLessons(user.id);
+    const nextId = TM.getNextLesson(user.id);
+    const nextLesson = window.LESSONS_DATA.find(l => l.id === nextId);
+    const totalLessons = window.LESSONS_DATA.length;
+
+    // Header
+    document.getElementById('dash-header').innerHTML = `
+      <div class="dash-welcome">Welcome back, <span>${user.username}</span>! 👋</div>
+      <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+        <p class="dash-subtitle">Keep up the great work. You've completed ${stats.completed} lessons.</p>
+        ${user.streak > 0 ? `<div class="streak-badge">🔥 ${user.streak} day streak</div>` : ''}
+      </div>
+    `;
+
+    // Stats
+    document.getElementById('dash-stats').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon purple">📚</div>
+        <div>
+          <div class="stat-value">${stats.completed}</div>
+          <div class="stat-label">Lessons Done</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">⚡</div>
+        <div>
+          <div class="stat-value">${stats.avgWpm || 0}<small style="font-size:0.9rem"> WPM</small></div>
+          <div class="stat-label">Avg Speed</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">🎯</div>
+        <div>
+          <div class="stat-value">${stats.avgAcc || 0}<small style="font-size:0.9rem">%</small></div>
+          <div class="stat-label">Avg Accuracy</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon yellow">⭐</div>
+        <div>
+          <div class="stat-value">${stats.totalStars}</div>
+          <div class="stat-label">Stars Earned</div>
+        </div>
+      </div>
+    `;
+
+    // Continue button
+    if (nextLesson) {
+      document.getElementById('continue-section').innerHTML = `
+        <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; border-color:rgba(139,92,246,0.3);">
+          <div>
+            <div style="font-size:0.8rem; color:var(--purple); font-weight:700; margin-bottom:4px;">CONTINUE LEARNING</div>
+            <div style="font-weight:700;">Lesson ${nextLesson.id}: ${nextLesson.title}</div>
+            <div style="color:var(--text2); font-size:0.85rem;">${nextLesson.unitName} · ${nextLesson.difficulty}</div>
+          </div>
+          <a href="lesson.html?id=${nextLesson.id}" class="btn btn-primary" style="flex-shrink:0">Continue →</a>
+        </div>
+      `;
+    }
+
+    // Recent lessons
+    if (recent.length > 0) {
+      const prog = TM.getProgress(user.id);
+      document.getElementById('recent-list').innerHTML = recent.map(item => {
+        const lesson = window.LESSONS_DATA.find(l => l.id === item.id);
+        if (!lesson) return '';
+        const p = prog[item.id];
+        return `
+          <a href="lesson.html?id=${item.id}" class="recent-item" style="text-decoration:none; color:inherit;">
+            <div>
+              <div class="recent-title">Lesson ${lesson.id}: ${lesson.title}</div>
+              <div class="recent-meta">${lesson.unitName} · Best: ${p.bestWpm} WPM · ${p.bestAccuracy}% acc</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;">
+              <div class="recent-stars">${TM.starsHtml(p.stars)}</div>
+              <div style="font-size:0.75rem; color:var(--text3);">${p.attempts} attempt${p.attempts > 1 ? 's' : ''}</div>
+            </div>
+          </a>
+        `;
+      }).join('');
+    }
+
+    // Progress ring (canvas)
+    const pct = Math.min((stats.completed / totalLessons) * 100, 100);
+    document.getElementById('ring-label').textContent = `${stats.completed} / ${totalLessons} lessons (${Math.round(pct)}%)`;
+    (function drawRing() {
+      const canvas = document.getElementById('progress-canvas');
+      const ctx = canvas.getContext('2d');
+      const cx = 80, cy = 80, r = 65, lw = 12;
+      ctx.clearRect(0, 0, 160, 160);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = lw;
+      ctx.stroke();
+      if (pct > 0) {
+        const grad = ctx.createLinearGradient(0, 0, 160, 0);
+        grad.addColorStop(0, '#8b5cf6');
+        grad.addColorStop(1, '#3b82f6');
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (pct / 100) * Math.PI * 2);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = lw;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 22px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(Math.round(pct) + '%', cx, cy);
+    })();
+
+    // Achievements
+    const achievements = [
+      { icon: '🎯', title: 'First Lesson', desc: 'Complete your very first lesson', unlocked: stats.completed >= 1 },
+      { icon: '📚', title: 'Getting Started', desc: 'Complete 10 lessons', unlocked: stats.completed >= 10 },
+      { icon: '⚡', title: 'Speed Demon', desc: 'Reach 50 WPM average', unlocked: stats.avgWpm >= 50 },
+      { icon: '🎯', title: 'Sharp Shooter', desc: 'Reach 95% average accuracy', unlocked: stats.avgAcc >= 95 },
+      { icon: '⭐', title: 'Star Collector', desc: 'Earn 100 stars', unlocked: stats.totalStars >= 100 },
+      { icon: '🔥', title: 'On Fire', desc: '3+ day typing streak', unlocked: (user.streak || 0) >= 3 },
+      { icon: '💯', title: 'Century', desc: 'Complete 100 lessons', unlocked: stats.completed >= 100 },
+      { icon: '🏆', title: 'TypeMaster', desc: 'Complete 500 lessons', unlocked: stats.completed >= 500 },
+    ];
+    document.getElementById('achievements-list').innerHTML = achievements.map(a => `
+      <div class="achievement ${a.unlocked ? 'unlocked' : ''}">
+        <div class="achievement-icon" style="filter:${a.unlocked ? 'none' : 'grayscale(1) opacity(0.4)'};">${a.icon}</div>
+        <div>
+          <div class="achievement-title" style="color:${a.unlocked ? 'var(--text)' : 'var(--text3)'};">${a.title}</div>
+          <div class="achievement-desc">${a.desc}</div>
+        </div>
+        ${a.unlocked ? '<span style="margin-left:auto; color:var(--yellow); font-size:1.1rem;">★</span>' : ''}
+      </div>
+    `).join('');
+
+    // Danger zone
+    document.getElementById('achievements-list').insertAdjacentHTML('afterend', `
+      <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--border);">
+        <div style="font-size:0.8rem; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:700; margin-bottom:12px;">Danger Zone</div>
+        <button class="btn btn-secondary" onclick="confirmReset()" style="border-color:rgba(239,68,68,0.4); color:var(--red); width:100%;">
+          🗑️ Reset All Progress
+        </button>
+      </div>
+    `);
+
+    }); // end TM.init().then
+
+    function confirmReset() {
+      if (!_dashUser) return;
+      if (confirm('Are you sure you want to reset ALL your lesson progress? This cannot be undone.')) {
+        TM.resetProgress(_dashUser.id).then(function() { window.location.reload(); });
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypeMaster — Lessons</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="page">
+    <div class="container">
+      <!-- Header -->
+      <div class="lessons-header fade-in">
+        <h1 class="lessons-title">All 1,531 Lessons</h1>
+        <p style="color:var(--text2); margin-bottom:20px;">22 units from beginner key practice to the Hall of Fame finale.</p>
+
+        <!-- Controls -->
+        <div class="lessons-controls">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search lessons..." oninput="filterLessons()">
+          </div>
+        </div>
+        <div class="filter-row" id="filter-row">
+          <button class="filter-btn active" data-diff="all" onclick="setFilter('all',this)">All</button>
+          <button class="filter-btn" data-diff="beginner" onclick="setFilter('beginner',this)">Beginner</button>
+          <button class="filter-btn" data-diff="intermediate" onclick="setFilter('intermediate',this)">Intermediate</button>
+          <button class="filter-btn" data-diff="advanced" onclick="setFilter('advanced',this)">Advanced</button>
+          <button class="filter-btn" data-diff="expert" onclick="setFilter('expert',this)">Expert</button>
+          <button class="filter-btn" data-cat="programming" onclick="setCatFilter('programming',this)" style="margin-left:12px;">💻 Programming</button>
+          <button class="filter-btn" data-cat="speed" onclick="setCatFilter('speed',this)">⚡ Speed</button>
+          <button class="filter-btn" data-cat="paragraphs" onclick="setCatFilter('paragraphs',this)">📖 Paragraphs</button>
+        </div>
+      </div>
+
+      <!-- Lessons by unit -->
+      <div id="lessons-root" class="fade-in"></div>
+    </div>
+  </div>
+
+  <script src="lessons-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function(){var u=localStorage.getItem('tm_uid');document.documentElement.setAttribute('data-theme',localStorage.getItem(u?'tm_theme_'+u:'tm_theme')||'dark');})();
+
+    var user = null, prog = {};
+    var diffFilter = 'all', catFilter = '';
+
+    TM.init().then(function() {
+      TM.renderNavbar('lessons');
+      user = TM.getCurrentUser();
+      prog = user ? TM.getProgress(user.id) : {};
+      render();
+    });
+
+    function isLocked(l) {
+      if (!user) return false;
+      if (l.id === 1) return false;
+      return !(prog[l.id - 1] && prog[l.id - 1].completed);
+    }
+
+    function setFilter(diff, btn) {
+      diffFilter = diff;
+      catFilter = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    }
+    function setCatFilter(cat, btn) {
+      catFilter = catFilter === cat ? '' : cat;
+      diffFilter = 'all';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (catFilter) btn.classList.add('active');
+      else document.querySelector('[data-diff="all"]').classList.add('active');
+      render();
+    }
+    function filterLessons() { render(); }
+
+    function render() {
+      const query = document.getElementById('search-input').value.toLowerCase().trim();
+      const root = document.getElementById('lessons-root');
+
+      let lessons = window.LESSONS_DATA;
+      if (diffFilter !== 'all') lessons = lessons.filter(l => l.difficulty === diffFilter);
+      if (catFilter) lessons = lessons.filter(l => l.category === catFilter);
+      if (query) lessons = lessons.filter(l =>
+        l.title.toLowerCase().includes(query) ||
+        l.unitName.toLowerCase().includes(query) ||
+        l.description.toLowerCase().includes(query)
+      );
+
+      if (lessons.length === 0) {
+        root.innerHTML = '<p style="color:var(--text2); text-align:center; padding:48px 0;">No lessons found. Try a different filter.</p>';
+        return;
+      }
+
+      // Group by unit
+      const units = {};
+      lessons.forEach(l => {
+        if (!units[l.unit]) units[l.unit] = { name: l.unitName, lessons: [] };
+        units[l.unit].lessons.push(l);
+      });
+
+      root.innerHTML = Object.entries(units).map(([unitNum, unitData]) => {
+        const total = unitData.lessons.length;
+        const completed = unitData.lessons.filter(l => prog[l.id]?.completed).length;
+        const cards = unitData.lessons.map(l => {
+          const p = prog[l.id] || {};
+          const done = !!p.completed;
+          const locked = isLocked(l);
+          const tag = locked ? 'div' : 'a';
+          const href = locked ? '' : `href="lesson.html?id=${l.id}"`;
+          return `
+            <${tag} ${href} class="lesson-card ${done ? 'completed' : ''} ${locked ? 'locked' : ''}">
+              <div class="lesson-num">Lesson ${l.id}</div>
+              <div class="lesson-title">${l.title}</div>
+              <div class="lesson-meta">
+                ${TM.diffBadge(l.difficulty)}
+                <div class="lesson-stars">${TM.starsHtml(p.stars || 0)}</div>
+              </div>
+              ${done ? `<div class="lesson-wpm">Best: ${p.bestWpm} WPM · ${p.bestAccuracy}%</div>` : ''}
+            </${tag}>
+          `;
+        }).join('');
+
+        return `
+          <div class="unit-section">
+            <div class="unit-header" onclick="toggleUnit(${unitNum})">
+              <div class="unit-num">${unitNum}</div>
+              <div>
+                <div class="unit-name">${unitData.name}</div>
+                <div style="font-size:0.8rem; color:var(--text2);">${total} lessons</div>
+              </div>
+              <div class="unit-progress">${completed}/${total} done</div>
+              <span class="unit-toggle open" id="toggle-${unitNum}">▼</span>
+            </div>
+            <div class="lessons-grid" id="unit-grid-${unitNum}">${cards}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleUnit(num) {
+      const grid = document.getElementById('unit-grid-' + num);
+      const toggle = document.getElementById('toggle-' + num);
+      if (grid.style.display === 'none') {
+        grid.style.display = 'grid';
+        toggle.classList.add('open');
+      } else {
+        grid.style.display = 'none';
+        toggle.classList.remove('open');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypeMaster — Lesson</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <div class="lesson-page" id="lesson-page">
+    <div class="container" id="main-container">
+      <p style="color:var(--text2); text-align:center; padding:80px 0;">Loading lesson...</p>
+    </div>
+  </div>
+
+  <!-- Results Overlay -->
+  <div class="overlay" id="result-overlay">
+    <div class="result-card" style="max-width:500px;">
+      <div id="res-emoji" style="font-size:3rem;margin-bottom:8px;">🎉</div>
+      <div id="res-title" style="font-size:2rem;font-weight:900;margin-bottom:4px;">Lesson Complete!</div>
+      <div id="res-subtitle" style="color:var(--text2);margin-bottom:20px;font-size:0.95rem;"></div>
+
+      <!-- Stars -->
+      <div id="res-stars" class="result-stars" style="margin-bottom:24px;"></div>
+
+      <!-- Big WPM + Accuracy -->
+      <div class="result-big-stats">
+        <div class="result-big-stat">
+          <div class="result-big-val" id="res-wpm" style="color:var(--purple);">0</div>
+          <div class="result-big-label">Words / Min</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div class="result-big-stat">
+          <div class="result-big-val" id="res-acc" style="color:var(--green);">0%</div>
+          <div class="result-big-label">Accuracy</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div class="result-big-stat">
+          <div class="result-big-val" id="res-time" style="color:var(--blue);font-size:2.2rem;">0s</div>
+          <div class="result-big-label">Time</div>
+        </div>
+        <div style="width:1px;background:var(--border);"></div>
+        <div class="result-big-stat">
+          <div class="result-big-val" id="res-errors" style="color:var(--red);font-size:2.2rem;">0</div>
+          <div class="result-big-label">Errors</div>
+        </div>
+      </div>
+
+      <div id="res-best" style="color:var(--text2);font-size:0.85rem;margin-bottom:20px;min-height:20px;"></div>
+
+      <div class="result-actions" style="justify-content:center;gap:12px;">
+        <button class="btn btn-secondary" onclick="restartLesson()">↺ Retry</button>
+        <button class="btn btn-primary btn-lg" id="res-next-btn" onclick="nextLesson()">Next Lesson →</button>
+        <a href="lessons.html" class="btn btn-secondary">All Lessons</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="lessons-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // ── Apply saved theme immediately ─────────────────────────────────────────
+    (function(){var u=localStorage.getItem('tm_uid');document.documentElement.setAttribute('data-theme',localStorage.getItem(u?'tm_theme_'+u:'tm_theme')||'dark');})();
+
+    // ── Keyboard click sound (Web Audio API) ──────────────────────────────────
+    var _audioCtx = null;
+    function getAudioCtx() {
+      if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return _audioCtx;
+    }
+    function playClick(correct) {
+      if (correct) {
+        try {
+          var ctx = getAudioCtx();
+          var buf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+          var data = buf.getChannelData(0);
+          for (var i = 0; i < data.length; i++)
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
+          var src = ctx.createBufferSource();
+          src.buffer = buf;
+          var filt = ctx.createBiquadFilter();
+          filt.type = 'bandpass'; filt.frequency.value = 1800; filt.Q.value = 0.7;
+          var gain = ctx.createGain(); gain.gain.value = 0.15;
+          src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+          src.start();
+        } catch(e) {}
+      } else {
+        try {
+          var ctx = getAudioCtx();
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = 180;
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(); osc.stop(ctx.currentTime + 0.12);
+        } catch(e) {}
+      }
+    }
+
+    function showAccuracyFail() {
+      accuracyFailed = true;
+      finished = true;
+      clearInterval(timerInterval);
+      var msg = document.createElement('div');
+      msg.id = 'acc-fail-overlay';
+      msg.style.cssText = 'position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.88);';
+      msg.innerHTML = '<div style="text-align:center;padding:48px 40px;background:var(--bg2);border-radius:20px;border:2px solid var(--red);max-width:400px;">' +
+        '<div style="font-size:3rem;margin-bottom:12px;">💀</div>' +
+        '<div style="font-size:1.6rem;font-weight:900;color:var(--red);margin-bottom:8px;">Too Many Errors!</div>' +
+        '<div style="color:var(--text2);margin-bottom:24px;">Accuracy fell below 50%.<br>Practice the basics and try again.</div>' +
+        '<button class="btn btn-primary" onclick="accFailRetry()">↺ Try Again</button>' +
+        '</div>';
+      document.body.appendChild(msg);
+    }
+
+    function accFailRetry() {
+      var el = document.getElementById('acc-fail-overlay');
+      if (el) el.remove();
+      accuracyFailed = false;
+      restartLesson();
+    }
+
+    // ── All vars declared first (var hoisting: assignment must come before use) ──
+    var typed = '';
+    var started = false;
+    var finished = false;
+    var accuracyFailed = false;
+    var startTime = null;
+    var timerInterval = null;
+    var elapsed = 0;
+    var errorCount = 0;
+    var totalTyped = 0;
+    var TARGET = '';
+    var lesson = null;
+    var lessonId = 1;
+    var user = null;
+
+    // Keyboard rows — must be declared before buildKeyboard() is called
+    var ROWS = [
+      ['`','1','2','3','4','5','6','7','8','9','0','-','=','Bksp'],
+      ['Tab','q','w','e','r','t','y','u','i','o','p','[',']','\\'],
+      ['Caps','a','s','d','f','g','h','j','k','l',';',"'",'Enter'],
+      ['Shift','z','x','c','v','b','n','m',',','.','/','Shift'],
+      ['Space'],
+    ];
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    TM.init().then(function() { try {
+      user = TM.getCurrentUser();
+      TM.renderNavbar('lessons');
+
+      var params = new URLSearchParams(location.search);
+      lessonId = parseInt(params.get('id')) || 1;
+
+      if (!window.LESSONS_DATA || !window.LESSONS_DATA.length) {
+        throw new Error('Lesson data failed to load. Please refresh the page.');
+      }
+
+      lesson = window.LESSONS_DATA.find(function(l) { return l.id === lessonId; });
+
+      if (!lesson) {
+        document.getElementById('main-container').innerHTML =
+          '<div style="text-align:center;padding:80px 0">' +
+          '<p style="color:var(--text2);margin-bottom:16px;">Lesson #' + lessonId + ' not found.</p>' +
+          '<a href="lessons.html" class="btn btn-primary">Browse Lessons</a></div>';
+      } else {
+        TARGET = lesson.content;
+        buildLesson();
+      }
+    } catch (err) {
+      document.getElementById('main-container').innerHTML =
+        '<div style="text-align:center;padding:80px 0">' +
+        '<p style="color:var(--red);margin-bottom:8px;font-weight:700;">Error loading lesson</p>' +
+        '<p style="color:var(--text2);margin-bottom:16px;">' + err.message + '</p>' +
+        '<a href="lessons.html" class="btn btn-primary">Browse Lessons</a></div>';
+      console.error('Lesson load error:', err);
+    } }); // end TM.init().then
+
+    // ── Keyboard ──────────────────────────────────────────────────────────────
+    function buildKeyboard() {
+      var root = document.getElementById('keyboard-root');
+      if (!root) return;
+      root.innerHTML = ROWS.map(function(row) {
+        return '<div class="keyboard-row">' + row.map(function(k) {
+          var cls = k === 'Space' ? 'key space' :
+                    k === 'Shift' || k === 'Enter' ? 'key wide' :
+                    k === 'Tab' || k === 'Caps' || k === 'Bksp' ? 'key wider' : 'key';
+          var dataKey = k === 'Space' ? ' ' : k.toLowerCase();
+          return '<div class="' + cls + '" data-key="' + dataKey + '">' + k + '</div>';
+        }).join('') + '</div>';
+      }).join('');
+    }
+
+    function highlightKey(char, type) {
+      var k = char === ' ' ? 'space' : char.toLowerCase();
+      var el = document.querySelector('[data-key="' + k + '"]');
+      if (!el) return;
+      el.classList.remove('active', 'correct-key', 'error-key');
+      if (type) el.classList.add(type);
+    }
+
+    // ── Text rendering ─────────────────────────────────────────────────────────
+    function renderText() {
+      var display = document.getElementById('typing-display');
+      if (!display) return;
+      var html = '';
+      for (var i = 0; i < TARGET.length; i++) {
+        var ch = TARGET[i];
+        var displayCh = ch === '\n' ? '&#8629;\n' : (ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch);
+        var cls;
+        if (i < typed.length) {
+          cls = (typed[i] === ch) ? 'char correct' : 'char incorrect';
+        } else if (i === typed.length) {
+          cls = 'char pending cursor-pos';
+        } else {
+          cls = 'char pending';
+        }
+        html += '<span class="' + cls + '">' + displayCh + '</span>';
+      }
+      if (typed.length >= TARGET.length) {
+        html += '<span class="char cursor-end"> </span>';
+      }
+      display.innerHTML = html;
+      var cursor = display.querySelector('.cursor-pos, .cursor-end');
+      if (cursor) cursor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    // ── Input handling ────────────────────────────────────────────────────────
+    function handleKeydown(e) {
+      if (e.key === 'Escape') restartLesson();
+    }
+
+    function handleInput() {
+      if (finished) return;
+      var input = document.getElementById('hidden-input');
+      if (!input) return;
+      var val = input.value;
+
+      if (!started && val.length > 0) {
+        started = true;
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 100);
+      }
+
+      var newTyped = val.slice(0, TARGET.length);
+      var pos = newTyped.length - 1;
+
+      if (pos >= 0) {
+        var expected = TARGET[pos];
+        var actual = newTyped[pos];
+        if (actual !== expected) {
+          errorCount++;
+          playClick(false);
+          highlightKey(actual, 'error-key');
+          setTimeout(function() { highlightKey(actual, ''); }, 200);
+        } else {
+          playClick(true);
+          highlightKey(actual, 'correct-key');
+          setTimeout(function() { highlightKey(actual, ''); }, 300);
+        }
+      }
+
+      totalTyped = Math.max(totalTyped, val.length);
+      typed = newTyped;
+      input.value = typed;
+
+      renderText();
+      updateLiveStats();
+
+      if (typed.length >= 20 && !accuracyFailed) {
+        var liveAcc = calcAccuracy();
+        if (liveAcc < 50) { showAccuracyFail(); return; }
+      }
+
+      if (typed === TARGET && TARGET.length > 0) {
+        finishLesson();
+      }
+    }
+
+    function focusInput() {
+      var input = document.getElementById('hidden-input');
+      if (input) input.focus();
+    }
+
+    // ── Timer & stats ─────────────────────────────────────────────────────────
+    function updateTimer() {
+      if (!started || finished) return;
+      elapsed = (Date.now() - startTime) / 1000;
+      updateLiveStats();
+    }
+
+    function calcWpm() {
+      if (!started) return 0;
+      var secs = (Date.now() - startTime) / 1000;
+      if (secs < 1) return 0;
+      var correct = 0;
+      for (var i = 0; i < typed.length; i++) {
+        if (typed[i] === TARGET[i]) correct++;
+      }
+      return Math.round((correct / 5) / (secs / 60));
+    }
+
+    function calcAccuracy() {
+      if (!typed.length) return 100;
+      var correct = 0;
+      for (var i = 0; i < typed.length; i++) {
+        if (typed[i] === TARGET[i]) correct++;
+      }
+      return Math.round((correct / typed.length) * 100);
+    }
+
+    function calcFinalAccuracy() {
+      if (errorCount === 0) return 100;
+      var total = TARGET.length + errorCount;
+      return Math.max(0, Math.round((TARGET.length / total) * 100));
+    }
+
+    function updateLiveStats() {
+      var wpm = calcWpm();
+      var acc = calcAccuracy();
+      var pct = TARGET.length > 0 ? Math.min((typed.length / TARGET.length) * 100, 100) : 0;
+      var e;
+      if ((e = document.getElementById('live-wpm'))) e.textContent = wpm;
+      if ((e = document.getElementById('live-acc'))) e.textContent = acc + '%';
+      if ((e = document.getElementById('progress-fill'))) e.style.width = pct + '%';
+      if ((e = document.getElementById('prog-chars'))) e.textContent = typed.length + ' / ' + TARGET.length;
+    }
+
+    // ── Finish ────────────────────────────────────────────────────────────────
+    function finishLesson() {
+      finished = true;
+      clearInterval(timerInterval);
+      elapsed = (Date.now() - startTime) / 1000;
+
+      var wpm = calcWpm();
+      var acc = calcFinalAccuracy();
+      var stars = TM.calcStars(lessonId, wpm, acc);
+
+      var saved = null;
+      if (user) saved = TM.saveResult(user.id, lessonId, wpm, acc);
+
+      var emojis = ['😊', '👍', '🎉', '🔥', '🚀'];
+      document.getElementById('res-emoji').textContent = stars >= 1 ? emojis[Math.min(stars * 2 - 1, 4)] : '😊';
+      document.getElementById('res-title').textContent = stars === 3 ? 'Perfect!' : stars === 2 ? 'Great job!' : 'Lesson Complete!';
+      var mins = Math.floor(elapsed / 60), secs = Math.floor(elapsed % 60);
+      document.getElementById('res-subtitle').textContent = 'Finished in ' + mins + ':' + (secs < 10 ? '0' : '') + secs;
+      document.getElementById('res-wpm').textContent = wpm;
+      document.getElementById('res-acc').textContent = acc + '%';
+      document.getElementById('res-time').textContent = Math.round(elapsed) + 's';
+      document.getElementById('res-errors').textContent = errorCount;
+
+      var starsHtml = '';
+      for (var i = 1; i <= 3; i++) {
+        starsHtml += '<span class="result-star" style="color:' + (i <= stars ? '#f59e0b' : 'rgba(255,255,255,0.15)') + '">&#9733;</span>';
+      }
+      document.getElementById('res-stars').innerHTML = starsHtml;
+
+      if (saved && saved.bestWpm > wpm) {
+        document.getElementById('res-best').textContent = 'Your best: ' + saved.bestWpm + ' WPM';
+      } else if (!user) {
+        document.getElementById('res-best').innerHTML = '<a href="login.html">Sign in</a> to save your progress!';
+      }
+
+      var nextLessonExists = window.LESSONS_DATA && window.LESSONS_DATA.find(function(l) { return l.id === lessonId + 1; });
+      var nextBtn = document.getElementById('res-next-btn');
+      if (!nextLessonExists && nextBtn) nextBtn.style.display = 'none';
+
+      document.getElementById('result-overlay').classList.add('show');
+
+      if (lessonId === 1531) {
+        document.getElementById('res-emoji').textContent = '🏆';
+        document.getElementById('res-title').textContent = 'You Are a TypeMaster!';
+        document.getElementById('res-subtitle').textContent = 'All 1,531 lessons complete. You earned the Hall of Fame title!';
+        launchConfetti();
+      }
+    }
+
+    function launchConfetti() {
+      var colors = ['#f59e0b','#8b5cf6','#3b82f6','#10b981','#ef4444','#ec4899','#ffffff','#facc15'];
+      for (var i = 0; i < 120; i++) {
+        (function() {
+          var el = document.createElement('div');
+          var size = 6 + Math.random() * 9;
+          var delay = Math.random() * 2.5;
+          var duration = 2 + Math.random() * 2;
+          el.style.cssText =
+            'position:fixed;width:' + size + 'px;height:' + size + 'px;' +
+            'left:' + (Math.random() * 100) + 'vw;top:-20px;z-index:500;pointer-events:none;' +
+            'border-radius:' + (Math.random() > 0.5 ? '50%' : '3px') + ';' +
+            'background:' + colors[Math.floor(Math.random() * colors.length)] + ';' +
+            'animation:confetti-fall ' + duration + 's ' + delay + 's ease-in forwards;';
+          document.body.appendChild(el);
+          setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, (delay + duration + 0.5) * 1000);
+        })();
+      }
+    }
+
+    function restartLesson() {
+      typed = ''; started = false; finished = false; accuracyFailed = false;
+      startTime = null; elapsed = 0; errorCount = 0; totalTyped = 0;
+      clearInterval(timerInterval);
+
+      var input = document.getElementById('hidden-input');
+      if (input) input.value = '';
+      document.getElementById('result-overlay').classList.remove('show');
+
+      var e;
+      if ((e = document.getElementById('live-wpm'))) e.textContent = '0';
+      if ((e = document.getElementById('live-acc'))) e.textContent = '100%';
+      if ((e = document.getElementById('progress-fill'))) e.style.width = '0%';
+      if ((e = document.getElementById('prog-chars'))) e.textContent = '0 / ' + TARGET.length;
+
+      renderText();
+      focusInput();
+    }
+
+    function nextLesson() {
+      window.location.href = 'lesson.html?id=' + (lessonId + 1);
+    }
+
+    // ── Build lesson DOM ──────────────────────────────────────────────────────
+    function buildLesson() {
+      var hasPrev = lessonId > 1;
+      var hasNext = !!(window.LESSONS_DATA && window.LESSONS_DATA.find(function(l) { return l.id === lessonId + 1; }));
+
+      document.getElementById('main-container').innerHTML =
+        /* top nav row */
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">' +
+          '<a href="lessons.html" class="back-btn">&#8592; Lessons</a>' +
+          '<div style="font-weight:700;font-size:1rem;color:var(--text);">' + lesson.title + '</div>' +
+          '<div style="display:flex;gap:8px;">' +
+            (hasPrev ? '<a href="lesson.html?id=' + (lessonId-1) + '" class="back-btn" title="Previous lesson">&#8592;</a>' : '<span style="width:68px"></span>') +
+            (hasNext ? '<a href="lesson.html?id=' + (lessonId+1) + '" class="back-btn" title="Next lesson">&#8594;</a>' : '<span style="width:60px"></span>') +
+          '</div>' +
+        '</div>' +
+
+        /* live stats */
+        '<div style="display:flex;align-items:center;gap:32px;margin-bottom:16px;">' +
+          '<div style="text-align:center;">' +
+            '<div id="live-wpm" style="font-size:2.2rem;font-weight:900;color:var(--purple);line-height:1;">0</div>' +
+            '<div style="font-size:0.75rem;color:var(--text2);font-weight:600;letter-spacing:1px;text-transform:uppercase;">WPM</div>' +
+          '</div>' +
+          '<div style="flex:1;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text2);margin-bottom:5px;">' +
+              '<span>Progress</span><span id="prog-chars">0 / ' + TARGET.length + '</span>' +
+            '</div>' +
+            '<div style="height:6px;background:var(--bg3);border-radius:6px;overflow:hidden;">' +
+              '<div id="progress-fill" style="height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,var(--purple),var(--blue));transition:width 0.15s;"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="text-align:center;">' +
+            '<div id="live-acc" style="font-size:2.2rem;font-weight:900;color:var(--green);line-height:1;">100%</div>' +
+            '<div style="font-size:0.75rem;color:var(--text2);font-weight:600;letter-spacing:1px;text-transform:uppercase;">Accuracy</div>' +
+          '</div>' +
+        '</div>' +
+
+        /* typing display */
+        '<div id="typing-display" tabindex="0" style="' +
+          'font-family:Fira Code,Courier New,monospace;font-size:1.15rem;line-height:2.2;' +
+          'letter-spacing:0.04em;padding:28px 32px;background:var(--bg2);' +
+          'border:1px solid var(--border);border-radius:14px;min-height:110px;' +
+          'white-space:pre-wrap;word-break:break-word;cursor:text;margin-bottom:10px;' +
+        '"></div>' +
+        '<input id="hidden-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ' +
+          'style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;">' +
+
+        /* hint */
+        '<div style="text-align:center;font-size:0.78rem;color:var(--text3);margin-bottom:20px;">' +
+          'Click the text to start &nbsp;·&nbsp; <kbd style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">Esc</kbd> to restart' +
+        '</div>' +
+
+        /* keyboard */
+        '<div id="keyboard-root"></div>';
+
+      buildKeyboard();
+
+      var display = document.getElementById('typing-display');
+      if (display) display.addEventListener('click', focusInput);
+
+      var input = document.getElementById('hidden-input');
+      if (input) {
+        input.addEventListener('input', handleInput);
+        input.addEventListener('keydown', handleKeydown);
+      }
+
+      renderText();
+      focusInput();
+    }
+
+    // Close overlay on background click
+    var overlay = document.getElementById('result-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === this) this.classList.remove('show');
+      });
+    }
+  </script>
+</body>
+</html>

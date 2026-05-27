@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypeMaster — Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card fade-in">
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div style="font-size:2.5rem; margin-bottom:8px;">⌨️</div>
+        <div class="auth-logo-title">Type<span>Master</span></div>
+        <p style="color:var(--text2); font-size:0.9rem; margin-top:6px;">1,500 lessons to typing mastery</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</div>
+        <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Create Account</div>
+      </div>
+
+      <!-- Error -->
+      <div class="auth-error" id="auth-error"></div>
+
+      <!-- Login Form -->
+      <form id="form-login" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="login-email" type="email" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="auth-submit">Sign In →</button>
+        <p style="text-align:center; margin-top:16px; color:var(--text2); font-size:0.85rem;">
+          No account? <a href="#" onclick="switchTab('register')">Create one free</a>
+        </p>
+      </form>
+
+      <!-- Register Form -->
+      <form id="form-register" class="hidden" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input" id="reg-username" type="text" placeholder="CoolTypist42" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="reg-email" type="email" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="reg-password" type="password" placeholder="Min 6 characters" required autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input class="form-input" id="reg-confirm" type="password" placeholder="Repeat password" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="auth-submit">Create Account →</button>
+        <p style="text-align:center; margin-top:16px; color:var(--text2); font-size:0.85rem;">
+          Already have an account? <a href="#" onclick="switchTab('login')">Sign in</a>
+        </p>
+      </form>
+
+      <!-- Demo note -->
+      <div style="text-align:center; margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+        <p style="color:var(--text3); font-size:0.8rem;">
+          🔒 Your progress is saved locally in your browser.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="lessons-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function(){var u=localStorage.getItem('tm_uid');document.documentElement.setAttribute('data-theme',localStorage.getItem(u?'tm_theme_'+u:'tm_theme')||'dark');})();
+
+    // Check URL params for tab (doesn't need auth)
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === 'register') switchTab('register');
+
+    // Redirect if already logged in
+    TM.init().then(function() {
+      if (TM.getCurrentUser()) window.location.href = 'dashboard.html';
+    });
+
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('tab-login').classList.toggle('active', isLogin);
+      document.getElementById('tab-register').classList.toggle('active', !isLogin);
+      document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+      document.getElementById('form-register').classList.toggle('hidden', isLogin);
+      clearError();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg; el.style.display = 'block';
+    }
+    function clearError() {
+      const el = document.getElementById('auth-error');
+      el.textContent = ''; el.style.display = 'none';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault(); clearError();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.textContent = 'Signing in…'; btn.disabled = true;
+      const result = await TM.login(
+        document.getElementById('login-email').value.trim(),
+        document.getElementById('login-password').value
+      );
+      if (result.error) { showError(result.error); btn.textContent = 'Sign In →'; btn.disabled = false; return; }
+      window.location.href = 'dashboard.html';
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault(); clearError();
+      const password = document.getElementById('reg-password').value;
+      const confirm  = document.getElementById('reg-confirm').value;
+      if (password !== confirm) { showError('Passwords do not match.'); return; }
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.textContent = 'Creating…'; btn.disabled = true;
+      const result = await TM.register(
+        document.getElementById('reg-username').value.trim(),
+        document.getElementById('reg-email').value.trim(),
+        password
+      );
+      if (result.error) { showError(result.error); btn.textContent = 'Create Account →'; btn.disabled = false; return; }
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+</html>

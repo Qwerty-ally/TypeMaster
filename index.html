@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TypeMaster — Learn to Type Fast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content fade-in">
+      <div class="hero-badge">🚀 1,531 lessons — completely free</div>
+      <h1 class="hero-title">
+        Type Faster.<br>
+        <span class="gradient">Think Clearer.</span>
+      </h1>
+      <p class="hero-subtitle">
+        Master touch typing with 1,531 progressive lessons across 22 units.<br>
+        Track your WPM, earn stars, and watch your speed skyrocket.
+      </p>
+      <div class="hero-actions">
+        <a href="login.html" class="btn btn-primary btn-lg">Start Typing Free →</a>
+        <a href="lessons.html" class="btn btn-secondary btn-lg">Browse Lessons</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num" id="stat-lessons">1,531</div>
+          <div class="hero-stat-label">Lessons</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">22</div>
+          <div class="hero-stat-label">Units</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">★★★</div>
+          <div class="hero-stat-label">Star Ratings</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">0$</div>
+          <div class="hero-stat-label">Cost</div>
+        </div>
+      </div>
+
+      <!-- Typewriter demo -->
+      <div class="typewriter-wrap">
+        <span class="tw-prompt">&gt; </span><span id="tw-text"></span><span class="tw-cursor"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container">
+      <h2 class="section-title">Everything you need to type like a pro</h2>
+      <p class="section-sub">Structured curriculum, real-time feedback, and cool analytics that keep you motivated.</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">⌨️</div>
+          <h3 class="feature-title">1,500 Progressive Lessons</h3>
+          <p class="feature-desc">From home row basics to expert speed challenges across 22 units, ending with the Hall of Fame finale.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3 class="feature-title">Real-Time WPM & Accuracy</h3>
+          <p class="feature-desc">Watch your words-per-minute update live as you type. Instant feedback on every keystroke.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⭐</div>
+          <h3 class="feature-title">Star Rating System</h3>
+          <p class="feature-desc">Earn 1, 2, or 3 stars based on your speed and accuracy. Replay lessons to improve your score.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3 class="feature-title">Progress Dashboard</h3>
+          <p class="feature-desc">Beautiful charts showing your improvement over time, streaks, and total stars collected.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <h3 class="feature-title">Achievements & Streaks</h3>
+          <p class="feature-desc">Unlock achievements as you hit milestones. Keep your daily streak going for bonus motivation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💻</div>
+          <h3 class="feature-title">Programming Lessons</h3>
+          <p class="feature-desc">Special lessons for JavaScript, Python, and HTML/CSS so developers can type code faster too.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="features" style="padding-top:0">
+    <div class="container">
+      <h2 class="section-title">How TypeMaster works</h2>
+      <p class="section-sub">Three simple steps to transform your typing.</p>
+      <div class="features-grid" style="grid-template-columns: repeat(3, 1fr)">
+        <div class="feature-card" style="text-align:center">
+          <div class="feature-icon" style="margin: 0 auto 18px">1️⃣</div>
+          <h3 class="feature-title">Create an account</h3>
+          <p class="feature-desc">Sign up free in seconds. Your progress is saved across all devices and sessions.</p>
+        </div>
+        <div class="feature-card" style="text-align:center">
+          <div class="feature-icon" style="margin: 0 auto 18px">2️⃣</div>
+          <h3 class="feature-title">Pick a lesson</h3>
+          <p class="feature-desc">Start at lesson 1 or jump to any unit. Filter by difficulty or topic to suit your level.</p>
+        </div>
+        <div class="feature-card" style="text-align:center">
+          <div class="feature-icon" style="margin: 0 auto 18px">3️⃣</div>
+          <h3 class="feature-title">Earn stars & level up</h3>
+          <p class="feature-desc">Complete lessons, earn up to 3 stars, and watch your WPM climb higher every week.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding: 80px 0; text-align: center;">
+    <div class="container-sm">
+      <h2 class="section-title">Ready to type at the speed of thought?</h2>
+      <p class="section-sub">Join thousands of learners improving their typing skills every day.</p>
+      <a href="login.html" class="btn btn-primary btn-lg">Start for Free →</a>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid var(--border); padding: 32px 0; text-align:center; color:var(--text3); font-size:0.9rem;">
+    <p>TypeMaster — 1,500 lessons. Free forever. ⌨️</p>
+  </footer>
+
+  <script src="lessons-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    (function(){var u=localStorage.getItem('tm_uid');document.documentElement.setAttribute('data-theme',localStorage.getItem(u?'tm_theme_'+u:'tm_theme')||'dark');})();
+    TM.init().then(function(){ TM.renderNavbar('home'); });
+
+    // Typewriter effect
+    const phrases = [
+      'The quick brown fox jumps over the lazy dog.',
+      'Practice makes perfect — type a little every day.',
+      'You are going to be blazing fast in no time.',
+      'Hello, future typing champion! Let\'s go!',
+    ];
+    let pi = 0, ci = 0, deleting = false;
+    const el = document.getElementById('tw-text');
+    function typeLoop() {
+      const phrase = phrases[pi];
+      if (!deleting) {
+        el.textContent = phrase.slice(0, ++ci);
+        if (ci === phrase.length) { deleting = true; setTimeout(typeLoop, 2000); return; }
+        setTimeout(typeLoop, 60);
+      } else {
+        el.textContent = phrase.slice(0, --ci);
+        if (ci === 0) { deleting = false; pi = (pi + 1) % phrases.length; setTimeout(typeLoop, 400); return; }
+        setTimeout(typeLoop, 30);
+      }
+    }
+    typeLoop();
+  </script>
+</body>
+</html>
